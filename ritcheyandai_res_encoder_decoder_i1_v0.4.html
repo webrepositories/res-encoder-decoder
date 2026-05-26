@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ritchey&AI RES Encoder Decoder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.5;
+            margin: 0;
+            padding: 20px;
+            background: #f4f4f4;
+            color: #222;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        h1, h2 {
+            margin-top: 0;
+        }
+
+        .section {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        input[type="number"], textarea, select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #aaa;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        button {
+            margin-top: 12px;
+            margin-right: 8px;
+            padding: 9px 14px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            background: #222;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #444;
+        }
+
+        .button-secondary {
+            background: #666;
+        }
+
+        .button-secondary:hover {
+            background: #777;
+        }
+
+        .status {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            background: #eee;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+
+        .status-good {
+            background: #e8ffe8;
+            border: 1px solid #75b875;
+        }
+
+        .status-bad {
+            background: #ffe8e8;
+            border: 1px solid #c87575;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 800px) {
+            .row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .small-note {
+            font-size: 0.95em;
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Ritchey&AI RES Encoder Decoder</h1>
+
+    <p>
+        This page encodes and decodes binary data using Ritchey Encoding Scheme v1. Full 4-character blocks start with a lowercase letter and contain one uppercase letter, one number, and one special character from <code>!@#$%&amp;?+</code>. A final 3-character block is used only when needed.
+    </p>
+
+    <div class="section">
+        <h2>Input Source</h2>
+
+        <label for="var_061342134_input_source_select_uns">Input source</label>
+        <select id="var_061342134_input_source_select_uns">
+            <option value="random" selected>Random bytes</option>
+            <option value="typed">Typed text</option>
+            <option value="file">File</option>
+        </select>
+
+        <div id="var_376895162_random_input_area_obj">
+            <label for="var_374472340_random_length_input_num">Random byte length</label>
+            <input id="var_374472340_random_length_input_num" type="number" min="0" step="1" value="32">
+            <button id="var_268710955_generate_random_button_obj" type="button">Generate Random Bytes</button>
+            <p class="small-note">Random bytes are generated with <code>crypto.getRandomValues()</code>.</p>
+        </div>
+
+        <div id="var_487369133_typed_input_area_obj" style="display: none;">
+            <label for="var_063642897_typed_textarea_str">Typed text</label>
+            <textarea id="var_063642897_typed_textarea_str" placeholder="Type text to encode here."></textarea>
+            <button id="var_750610756_load_typed_button_obj" type="button">Use Typed Text</button>
+            <p class="small-note">Typed text is loaded as UTF-8 bytes.</p>
+        </div>
+
+        <div id="var_750367556_file_input_area_obj" style="display: none;">
+            <label for="var_868152418_file_input_obj">Choose file</label>
+            <input id="var_868152418_file_input_obj" type="file">
+            <button id="var_994185615_load_file_button_obj" type="button">Read File</button>
+        </div>
+
+        <div id="var_145120359_input_status_obj" class="status">No input loaded yet.</div>
+    </div>
+
+    <div class="row">
+        <div class="section">
+            <h2>Encode</h2>
+
+            <label for="var_683047497_encode_target_select_uns">Encode target</label>
+            <select id="var_683047497_encode_target_select_uns">
+                <option value="input" selected>Original input bytes</option>
+                <option value="sha256_hex">SHA-256 checksum as hexadecimal text</option>
+                <option value="sha512_hex">SHA-512 checksum as hexadecimal text</option>
+            </select>
+            <p class="small-note">When a checksum is selected, the input is hashed first. The lowercase hexadecimal checksum string is then encoded as text bytes, not as the raw digest bytes.</p>
+
+            <label for="var_462283580_hash_loop_count_input_num">Checksum hash loop count</label>
+            <input id="var_462283580_hash_loop_count_input_num" type="number" min="1" step="1" value="1">
+            <p class="small-note">This applies only when SHA-256 or SHA-512 is selected. A value of 1 means hash the input once. Higher values rehash the previous lowercase hexadecimal checksum text.</p>
+
+            <label for="var_546425703_trim_length_input_num">Optional trim length for password-style output</label>
+            <input id="var_546425703_trim_length_input_num" type="number" min="0" step="1" placeholder="Leave blank for no trimmed output">
+            <p class="small-note">The trimmed version is copied from the start of the full encoded output. It is useful for passwords, but it is not intended to be decodable.</p>
+
+            <button id="var_298851731_encode_button_obj" type="button">Encode</button>
+            <button id="var_707221285_copy_encoded_button_obj" class="button-secondary" type="button">Copy Full Encoded Text</button>
+
+            <label for="var_240249013_encoded_output_str">Full encoded output</label>
+            <textarea id="var_240249013_encoded_output_str" spellcheck="false"></textarea>
+
+            <div id="var_808975969_trimmed_output_area_obj" style="display: none;">
+                <button id="var_902143227_copy_trimmed_button_obj" class="button-secondary" type="button">Copy Trimmed Text</button>
+                <label for="var_306728331_trimmed_output_str">Trimmed password-style output</label>
+                <textarea id="var_306728331_trimmed_output_str" spellcheck="false" readonly></textarea>
+            </div>
+
+            <label for="var_514612192_hash_output_str">Checksum text used for encoding</label>
+            <textarea id="var_514612192_hash_output_str" spellcheck="false" readonly placeholder="This will be filled only when SHA-256 or SHA-512 is selected."></textarea>
+        </div>
+
+        <div class="section">
+            <h2>Decode</h2>
+            <p class="small-note">Paste or edit encoded text below, then decode it.</p>
+            <button id="var_827972822_decode_button_obj" type="button">Decode Encoded Text</button>
+            <button id="var_950510764_download_decoded_button_obj" class="button-secondary" type="button">Download Decoded Bytes</button>
+
+            <label for="var_753753828_decoded_text_output_str">Decoded text preview</label>
+            <textarea id="var_753753828_decoded_text_output_str" spellcheck="false" readonly></textarea>
+
+            <div id="var_148124971_decode_status_obj" class="status">No decode attempted yet.</div>
+        </div>
+    </div>
+</main>
+
+<script>
+"use strict";
+
+var var_238232630_current_input_bytes_arr = new Uint8Array(0);
+var var_656214816_last_encoded_source_bytes_arr = new Uint8Array(0);
+var var_396721995_current_decoded_bytes_arr = new Uint8Array(0);
+
+var var_672183692_lowercase_chars_str = "abcdefghijklmnopqrstuvwxyz";
+var var_371286598_uppercase_chars_str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+var var_812268049_digit_chars_str = "0123456789";
+var var_139477032_special_chars_str = "!@#$%&?+";
+var var_106972489_combined_chars_str = var_672183692_lowercase_chars_str + var_371286598_uppercase_chars_str + var_812268049_digit_chars_str + var_139477032_special_chars_str;
+
+var var_802401697_short_offsets_obj = {
+    2: 0,
+    4: 4,
+    6: 20,
+    8: 84,
+    10: 340,
+    12: 1364,
+    14: 5460,
+    16: 21844
+};
+
+var var_162153829_short_ranges_arr = [
+    { bits: 2, offset: 0, count: 4 },
+    { bits: 4, offset: 4, count: 16 },
+    { bits: 6, offset: 20, count: 64 },
+    { bits: 8, offset: 84, count: 256 },
+    { bits: 10, offset: 340, count: 1024 },
+    { bits: 12, offset: 1364, count: 4096 },
+    { bits: 14, offset: 5460, count: 16384 },
+    { bits: 16, offset: 21844, count: 65536 }
+];
+
+function fun_648836101_set_status_i1_v1(var_290556223_element_obj, var_867218830_message_str, var_409612581_is_good_uns) {
+    var_290556223_element_obj.textContent = var_867218830_message_str;
+    var_290556223_element_obj.classList.remove("status-good");
+    var_290556223_element_obj.classList.remove("status-bad");
+
+    if (var_409612581_is_good_uns === true) {
+        var_290556223_element_obj.classList.add("status-good");
+    }
+
+    if (var_409612581_is_good_uns === false) {
+        var_290556223_element_obj.classList.add("status-bad");
+    }
+}
+
+function fun_998179621_get_index_in_chars_i1_v1(var_123224912_chars_str, var_681525334_char_str) {
+    return var_123224912_chars_str.indexOf(var_681525334_char_str);
+}
+
+function fun_667545013_encode_full_block_i1_v1(var_966691819_value_num) {
+    var var_628451498_order_index_num = var_966691819_value_num % 6;
+    var_966691819_value_num = Math.floor(var_966691819_value_num / 6);
+
+    var var_896758975_special_index_num = var_966691819_value_num % 8;
+    var_966691819_value_num = Math.floor(var_966691819_value_num / 8);
+
+    var var_562515754_digit_index_num = var_966691819_value_num % 10;
+    var_966691819_value_num = Math.floor(var_966691819_value_num / 10);
+
+    var var_097574244_uppercase_index_num = var_966691819_value_num % 26;
+    var_966691819_value_num = Math.floor(var_966691819_value_num / 26);
+
+    var var_430762036_lowercase_index_num = var_966691819_value_num;
+
+    var var_778520990_lowercase_str = var_672183692_lowercase_chars_str[var_430762036_lowercase_index_num];
+    var var_913143495_uppercase_str = var_371286598_uppercase_chars_str[var_097574244_uppercase_index_num];
+    var var_538859717_digit_str = var_812268049_digit_chars_str[var_562515754_digit_index_num];
+    var var_333023630_special_str = var_139477032_special_chars_str[var_896758975_special_index_num];
+
+    var var_048726824_tail_str = "";
+
+    if (var_628451498_order_index_num === 0) {
+        var_048726824_tail_str = var_913143495_uppercase_str + var_538859717_digit_str + var_333023630_special_str;
+    } else if (var_628451498_order_index_num === 1) {
+        var_048726824_tail_str = var_913143495_uppercase_str + var_333023630_special_str + var_538859717_digit_str;
+    } else if (var_628451498_order_index_num === 2) {
+        var_048726824_tail_str = var_538859717_digit_str + var_913143495_uppercase_str + var_333023630_special_str;
+    } else if (var_628451498_order_index_num === 3) {
+        var_048726824_tail_str = var_538859717_digit_str + var_333023630_special_str + var_913143495_uppercase_str;
+    } else if (var_628451498_order_index_num === 4) {
+        var_048726824_tail_str = var_333023630_special_str + var_913143495_uppercase_str + var_538859717_digit_str;
+    } else {
+        var_048726824_tail_str = var_333023630_special_str + var_538859717_digit_str + var_913143495_uppercase_str;
+    }
+
+    return var_778520990_lowercase_str + var_048726824_tail_str;
+}
+
+function fun_485622129_decode_full_block_i1_v1(var_574279699_block_str) {
+    if (var_574279699_block_str.length !== 4) {
+        throw new Error("Full block is not 4 characters long.");
+    }
+
+    var var_843451165_lowercase_index_num = fun_998179621_get_index_in_chars_i1_v1(var_672183692_lowercase_chars_str, var_574279699_block_str[0]);
+
+    if (var_843451165_lowercase_index_num < 0) {
+        throw new Error("Full block does not start with a lowercase letter: " + var_574279699_block_str);
+    }
+
+    var var_881740798_uppercase_index_num = -1;
+    var var_899906204_digit_index_num = -1;
+    var var_472933557_special_index_num = -1;
+    var var_798239162_pattern_str = "";
+
+    for (var var_745483586_i_num = 1; var_745483586_i_num < 4; var_745483586_i_num++) {
+        var var_580185604_char_str = var_574279699_block_str[var_745483586_i_num];
+        var var_184163524_temp_index_num = fun_998179621_get_index_in_chars_i1_v1(var_371286598_uppercase_chars_str, var_580185604_char_str);
+
+        if (var_184163524_temp_index_num >= 0) {
+            if (var_881740798_uppercase_index_num !== -1) {
+                throw new Error("Full block has more than one uppercase letter: " + var_574279699_block_str);
+            }
+            var_881740798_uppercase_index_num = var_184163524_temp_index_num;
+            var_798239162_pattern_str += "U";
+            continue;
+        }
+
+        var_184163524_temp_index_num = fun_998179621_get_index_in_chars_i1_v1(var_812268049_digit_chars_str, var_580185604_char_str);
+
+        if (var_184163524_temp_index_num >= 0) {
+            if (var_899906204_digit_index_num !== -1) {
+                throw new Error("Full block has more than one digit: " + var_574279699_block_str);
+            }
+            var_899906204_digit_index_num = var_184163524_temp_index_num;
+            var_798239162_pattern_str += "D";
+            continue;
+        }
+
+        var_184163524_temp_index_num = fun_998179621_get_index_in_chars_i1_v1(var_139477032_special_chars_str, var_580185604_char_str);
+
+        if (var_184163524_temp_index_num >= 0) {
+            if (var_472933557_special_index_num !== -1) {
+                throw new Error("Full block has more than one special character: " + var_574279699_block_str);
+            }
+            var_472933557_special_index_num = var_184163524_temp_index_num;
+            var_798239162_pattern_str += "S";
+            continue;
+        }
+
+        throw new Error("Full block contains an invalid character: " + var_574279699_block_str);
+    }
+
+    if (var_881740798_uppercase_index_num < 0 || var_899906204_digit_index_num < 0 || var_472933557_special_index_num < 0) {
+        throw new Error("Full block is missing uppercase, digit, or special character: " + var_574279699_block_str);
+    }
+
+    var var_972950313_order_index_num = -1;
+
+    if (var_798239162_pattern_str === "UDS") {
+        var_972950313_order_index_num = 0;
+    } else if (var_798239162_pattern_str === "USD") {
+        var_972950313_order_index_num = 1;
+    } else if (var_798239162_pattern_str === "DUS") {
+        var_972950313_order_index_num = 2;
+    } else if (var_798239162_pattern_str === "DSU") {
+        var_972950313_order_index_num = 3;
+    } else if (var_798239162_pattern_str === "SUD") {
+        var_972950313_order_index_num = 4;
+    } else if (var_798239162_pattern_str === "SDU") {
+        var_972950313_order_index_num = 5;
+    } else {
+        throw new Error("Full block has an invalid character order: " + var_574279699_block_str);
+    }
+
+    var var_056105548_value_num = (((var_843451165_lowercase_index_num * 26 + var_881740798_uppercase_index_num) * 10 + var_899906204_digit_index_num) * 8 + var_472933557_special_index_num) * 6 + var_972950313_order_index_num;
+
+    if (var_056105548_value_num > 262143) {
+        throw new Error("Full block is in the reserved range: " + var_574279699_block_str);
+    }
+
+    return var_056105548_value_num;
+}
+
+function fun_329085229_encode_short_block_i1_v1(var_402075757_leftover_value_num, var_258944537_leftover_bits_num) {
+    var var_302287736_offset_num = var_802401697_short_offsets_obj[var_258944537_leftover_bits_num];
+
+    if (var_302287736_offset_num === undefined) {
+        throw new Error("Unsupported leftover bit length.");
+    }
+
+    var var_214799640_short_index_num = var_302287736_offset_num + var_402075757_leftover_value_num;
+
+    var var_317536369_char1_index_num = Math.floor(var_214799640_short_index_num / 4900);
+    var var_849275635_char2_index_num = Math.floor((var_214799640_short_index_num % 4900) / 70);
+    var var_782798052_char3_index_num = var_214799640_short_index_num % 70;
+
+    return var_106972489_combined_chars_str[var_317536369_char1_index_num] + var_106972489_combined_chars_str[var_849275635_char2_index_num] + var_106972489_combined_chars_str[var_782798052_char3_index_num];
+}
+
+function fun_388060846_decode_short_block_i1_v1(var_085533194_block_str) {
+    if (var_085533194_block_str.length !== 3) {
+        throw new Error("Short block is not 3 characters long.");
+    }
+
+    var var_834955490_char1_index_num = fun_998179621_get_index_in_chars_i1_v1(var_106972489_combined_chars_str, var_085533194_block_str[0]);
+    var var_338013751_char2_index_num = fun_998179621_get_index_in_chars_i1_v1(var_106972489_combined_chars_str, var_085533194_block_str[1]);
+    var var_760028366_char3_index_num = fun_998179621_get_index_in_chars_i1_v1(var_106972489_combined_chars_str, var_085533194_block_str[2]);
+
+    if (var_834955490_char1_index_num < 0 || var_338013751_char2_index_num < 0 || var_760028366_char3_index_num < 0) {
+        throw new Error("Short block contains an invalid character.");
+    }
+
+    var var_098499503_short_index_num = var_834955490_char1_index_num * 4900 + var_338013751_char2_index_num * 70 + var_760028366_char3_index_num;
+
+    if (var_098499503_short_index_num > 87379) {
+        throw new Error("Short block is in the reserved range.");
+    }
+
+    for (var var_107858949_i_num = 0; var_107858949_i_num < var_162153829_short_ranges_arr.length; var_107858949_i_num++) {
+        var var_397162406_range_obj = var_162153829_short_ranges_arr[var_107858949_i_num];
+        var var_631133735_start_num = var_397162406_range_obj.offset;
+        var var_786685943_end_num = var_397162406_range_obj.offset + var_397162406_range_obj.count - 1;
+
+        if (var_098499503_short_index_num >= var_631133735_start_num && var_098499503_short_index_num <= var_786685943_end_num) {
+            return {
+                bits: var_397162406_range_obj.bits,
+                value: var_098499503_short_index_num - var_397162406_range_obj.offset
+            };
+        }
+    }
+
+    throw new Error("Short block range could not be determined.");
+}
+
+function fun_763401322_encode_bytes_i1_v1(var_662091703_bytes_arr) {
+    var var_194395332_output_str = "";
+    var var_575368632_bit_buffer_num = 0;
+    var var_268480876_bit_count_num = 0;
+
+    for (var var_441333648_i_num = 0; var_441333648_i_num < var_662091703_bytes_arr.length; var_441333648_i_num++) {
+        var_575368632_bit_buffer_num = (var_575368632_bit_buffer_num << 8) | var_662091703_bytes_arr[var_441333648_i_num];
+        var_268480876_bit_count_num += 8;
+
+        while (var_268480876_bit_count_num >= 18) {
+            var var_205298815_shift_num = var_268480876_bit_count_num - 18;
+            var var_277949603_value_num = (var_575368632_bit_buffer_num >> var_205298815_shift_num) & 262143;
+            var_194395332_output_str += fun_667545013_encode_full_block_i1_v1(var_277949603_value_num);
+            var_268480876_bit_count_num -= 18;
+            var_575368632_bit_buffer_num = var_575368632_bit_buffer_num & ((1 << var_268480876_bit_count_num) - 1);
+        }
+    }
+
+    if (var_268480876_bit_count_num > 0) {
+        var_194395332_output_str += fun_329085229_encode_short_block_i1_v1(var_575368632_bit_buffer_num, var_268480876_bit_count_num);
+    }
+
+    return var_194395332_output_str;
+}
+
+function fun_673237612_append_bits_to_bytes_i1_v1(var_124427224_state_obj, var_761997390_value_num, var_424719826_bits_num) {
+    for (var var_550463982_i_num = var_424719826_bits_num - 1; var_550463982_i_num >= 0; var_550463982_i_num--) {
+        var var_265045951_bit_num = (var_761997390_value_num >> var_550463982_i_num) & 1;
+        var_124427224_state_obj.currentByte = (var_124427224_state_obj.currentByte << 1) | var_265045951_bit_num;
+        var_124427224_state_obj.bitCount += 1;
+
+        if (var_124427224_state_obj.bitCount === 8) {
+            var_124427224_state_obj.bytes.push(var_124427224_state_obj.currentByte);
+            var_124427224_state_obj.currentByte = 0;
+            var_124427224_state_obj.bitCount = 0;
+        }
+    }
+}
+
+function fun_264986481_decode_to_bytes_i1_v1(var_812742953_encoded_str) {
+    var_812742953_encoded_str = var_812742953_encoded_str.trim();
+
+    if (var_812742953_encoded_str.length === 0) {
+        return new Uint8Array(0);
+    }
+
+    var var_755801662_remainder_num = var_812742953_encoded_str.length % 4;
+
+    if (var_755801662_remainder_num === 1 || var_755801662_remainder_num === 2) {
+        throw new Error("Invalid encoded length. Length must be 0 mod 4 or 3 mod 4.");
+    }
+
+    var var_297630692_full_length_num = var_812742953_encoded_str.length;
+    var var_623782772_short_block_str = "";
+
+    if (var_755801662_remainder_num === 3) {
+        var_297630692_full_length_num = var_812742953_encoded_str.length - 3;
+        var_623782772_short_block_str = var_812742953_encoded_str.slice(var_297630692_full_length_num);
+    }
+
+    var var_681899559_state_obj = {
+        bytes: [],
+        currentByte: 0,
+        bitCount: 0
+    };
+
+    for (var var_138128263_i_num = 0; var_138128263_i_num < var_297630692_full_length_num; var_138128263_i_num += 4) {
+        var var_427010882_block_str = var_812742953_encoded_str.slice(var_138128263_i_num, var_138128263_i_num + 4);
+        var var_238204632_value_num = fun_485622129_decode_full_block_i1_v1(var_427010882_block_str);
+        fun_673237612_append_bits_to_bytes_i1_v1(var_681899559_state_obj, var_238204632_value_num, 18);
+    }
+
+    if (var_623782772_short_block_str !== "") {
+        var var_956132771_short_obj = fun_388060846_decode_short_block_i1_v1(var_623782772_short_block_str);
+        fun_673237612_append_bits_to_bytes_i1_v1(var_681899559_state_obj, var_956132771_short_obj.value, var_956132771_short_obj.bits);
+    }
+
+    if (var_681899559_state_obj.bitCount !== 0) {
+        throw new Error("Decoded bit stream does not end on a byte boundary.");
+    }
+
+    return new Uint8Array(var_681899559_state_obj.bytes);
+}
+
+function fun_141872389_bytes_to_hex_preview_i1_v1(var_324773362_bytes_arr, var_534699821_limit_num) {
+    var var_412405098_parts_arr = [];
+    var var_002315927_length_num = Math.min(var_324773362_bytes_arr.length, var_534699821_limit_num);
+
+    for (var var_209561261_i_num = 0; var_209561261_i_num < var_002315927_length_num; var_209561261_i_num++) {
+        var var_711311046_hex_str = var_324773362_bytes_arr[var_209561261_i_num].toString(16).padStart(2, "0");
+        var_412405098_parts_arr.push(var_711311046_hex_str);
+    }
+
+    if (var_324773362_bytes_arr.length > var_534699821_limit_num) {
+        var_412405098_parts_arr.push("...");
+    }
+
+    return var_412405098_parts_arr.join(" ");
+}
+
+function fun_667219023_array_buffer_to_hex_i1_v1(var_539671449_buffer_obj) {
+    var var_878499416_bytes_arr = new Uint8Array(var_539671449_buffer_obj);
+    var var_073870291_hex_str = "";
+
+    for (var var_861859897_i_num = 0; var_861859897_i_num < var_878499416_bytes_arr.length; var_861859897_i_num++) {
+        var_073870291_hex_str += var_878499416_bytes_arr[var_861859897_i_num].toString(16).padStart(2, "0");
+    }
+
+    return var_073870291_hex_str;
+}
+
+async function fun_019765254_get_bytes_for_encoding_i1_v1() {
+    var var_724678913_target_str = document.getElementById("var_683047497_encode_target_select_uns").value;
+    var var_884112900_hash_output_obj = document.getElementById("var_514612192_hash_output_str");
+
+    if (var_724678913_target_str === "input") {
+        var_884112900_hash_output_obj.value = "";
+        return {
+            bytes: var_238232630_current_input_bytes_arr,
+            description: "original input bytes"
+        };
+    }
+
+    var var_007067620_algorithm_str = "";
+
+    if (var_724678913_target_str === "sha256_hex") {
+        var_007067620_algorithm_str = "SHA-256";
+    } else if (var_724678913_target_str === "sha512_hex") {
+        var_007067620_algorithm_str = "SHA-512";
+    } else {
+        throw new Error("Unknown encode target.");
+    }
+
+    var var_532334240_hash_loop_input_obj = document.getElementById("var_462283580_hash_loop_count_input_num");
+    var var_204197732_hash_loop_count_num = parseInt(var_532334240_hash_loop_input_obj.value, 10);
+
+    if (Number.isNaN(var_204197732_hash_loop_count_num) || var_204197732_hash_loop_count_num < 1) {
+        throw new Error("Checksum hash loop count must be 1 or greater.");
+    }
+
+    var var_013529422_encoder_obj = new TextEncoder();
+    var var_389164632_hash_input_bytes_arr = var_238232630_current_input_bytes_arr;
+    var var_163401927_hex_str = "";
+
+    for (var var_519348577_loop_index_num = 0; var_519348577_loop_index_num < var_204197732_hash_loop_count_num; var_519348577_loop_index_num++) {
+        var var_622341991_digest_obj = await crypto.subtle.digest(var_007067620_algorithm_str, var_389164632_hash_input_bytes_arr);
+        var_163401927_hex_str = fun_667219023_array_buffer_to_hex_i1_v1(var_622341991_digest_obj);
+
+        if (var_519348577_loop_index_num + 1 < var_204197732_hash_loop_count_num) {
+            var_389164632_hash_input_bytes_arr = var_013529422_encoder_obj.encode(var_163401927_hex_str);
+        }
+    }
+
+    var_884112900_hash_output_obj.value = var_163401927_hex_str;
+
+    return {
+        bytes: var_013529422_encoder_obj.encode(var_163401927_hex_str),
+        description: var_007067620_algorithm_str + " hexadecimal checksum text after " + var_204197732_hash_loop_count_num + " hash loop(s)"
+    };
+}
+
+function fun_931645617_update_input_status_i1_v1(var_786469354_message_str) {
+    var var_626967235_status_obj = document.getElementById("var_145120359_input_status_obj");
+    var var_309550338_preview_str = fun_141872389_bytes_to_hex_preview_i1_v1(var_238232630_current_input_bytes_arr, 64);
+    fun_648836101_set_status_i1_v1(var_626967235_status_obj, var_786469354_message_str + "\nBytes loaded: " + var_238232630_current_input_bytes_arr.length + "\nHex preview: " + var_309550338_preview_str, true);
+}
+
+function fun_467432658_generate_random_bytes_i1_v1() {
+    var var_194064367_length_input_obj = document.getElementById("var_374472340_random_length_input_num");
+    var var_560076762_length_num = parseInt(var_194064367_length_input_obj.value, 10);
+
+    if (Number.isNaN(var_560076762_length_num) || var_560076762_length_num < 0) {
+        fun_648836101_set_status_i1_v1(document.getElementById("var_145120359_input_status_obj"), "Random byte length must be 0 or greater.", false);
+        return;
+    }
+
+    var_238232630_current_input_bytes_arr = new Uint8Array(var_560076762_length_num);
+
+    var var_379733988_offset_num = 0;
+
+    while (var_379733988_offset_num < var_238232630_current_input_bytes_arr.length) {
+        var var_406526012_chunk_size_num = Math.min(65536, var_238232630_current_input_bytes_arr.length - var_379733988_offset_num);
+        var var_951799263_chunk_arr = var_238232630_current_input_bytes_arr.subarray(var_379733988_offset_num, var_379733988_offset_num + var_406526012_chunk_size_num);
+        crypto.getRandomValues(var_951799263_chunk_arr);
+        var_379733988_offset_num += var_406526012_chunk_size_num;
+    }
+
+    fun_931645617_update_input_status_i1_v1("Random bytes generated.");
+}
+
+function fun_358755961_load_typed_text_i1_v1() {
+    var var_792554285_text_str = document.getElementById("var_063642897_typed_textarea_str").value;
+    var var_668730198_encoder_obj = new TextEncoder();
+    var_238232630_current_input_bytes_arr = var_668730198_encoder_obj.encode(var_792554285_text_str);
+    fun_931645617_update_input_status_i1_v1("Typed text loaded as UTF-8 bytes.");
+}
+
+function fun_056827390_read_file_i1_v1() {
+    var var_815577144_file_input_obj = document.getElementById("var_868152418_file_input_obj");
+
+    if (var_815577144_file_input_obj.files.length < 1) {
+        fun_648836101_set_status_i1_v1(document.getElementById("var_145120359_input_status_obj"), "Choose a file first.", false);
+        return;
+    }
+
+    var var_240390225_file_obj = var_815577144_file_input_obj.files[0];
+    var var_687647271_reader_obj = new FileReader();
+
+    var_687647271_reader_obj.onload = function () {
+        var_238232630_current_input_bytes_arr = new Uint8Array(var_687647271_reader_obj.result);
+        fun_931645617_update_input_status_i1_v1("File loaded: " + var_240390225_file_obj.name);
+    };
+
+    var_687647271_reader_obj.onerror = function () {
+        fun_648836101_set_status_i1_v1(document.getElementById("var_145120359_input_status_obj"), "Could not read file.", false);
+    };
+
+    var_687647271_reader_obj.readAsArrayBuffer(var_240390225_file_obj);
+}
+
+async function fun_912147589_encode_current_input_i1_v1() {
+    try {
+        var var_525654012_encoding_input_obj = await fun_019765254_get_bytes_for_encoding_i1_v1();
+        var_656214816_last_encoded_source_bytes_arr = var_525654012_encoding_input_obj.bytes;
+
+        var var_183754545_encoded_str = fun_763401322_encode_bytes_i1_v1(var_525654012_encoding_input_obj.bytes);
+        document.getElementById("var_240249013_encoded_output_str").value = var_183754545_encoded_str;
+
+        var var_919179677_trim_message_str = fun_551305295_update_trimmed_output_i1_v1(var_183754545_encoded_str);
+
+        fun_648836101_set_status_i1_v1(document.getElementById("var_148124971_decode_status_obj"), "Encoded " + var_525654012_encoding_input_obj.bytes.length + " bytes from " + var_525654012_encoding_input_obj.description + " into " + var_183754545_encoded_str.length + " characters." + var_919179677_trim_message_str, true);
+    } catch (var_235358632_error_obj) {
+        fun_648836101_set_status_i1_v1(document.getElementById("var_148124971_decode_status_obj"), "Encode error: " + var_235358632_error_obj.message, false);
+    }
+}
+
+function fun_664152443_decode_encoded_text_i1_v1() {
+    try {
+        var var_271164013_encoded_str = document.getElementById("var_240249013_encoded_output_str").value;
+        var_396721995_current_decoded_bytes_arr = fun_264986481_decode_to_bytes_i1_v1(var_271164013_encoded_str);
+
+        var var_886368261_decoder_obj = new TextDecoder("utf-8", { fatal: false });
+        var var_347101480_preview_str = var_886368261_decoder_obj.decode(var_396721995_current_decoded_bytes_arr);
+        document.getElementById("var_753753828_decoded_text_output_str").value = var_347101480_preview_str;
+
+        var var_548401706_matches_str = "";
+        if (fun_220122524_uint8arrays_equal_i1_v1(var_656214816_last_encoded_source_bytes_arr, var_396721995_current_decoded_bytes_arr) === true) {
+            var_548401706_matches_str = "\nDecoded bytes match the last encoded source bytes.";
+        } else {
+            var_548401706_matches_str = "\nDecoded bytes do not match the last encoded source bytes, or the encoded text was edited.";
+        }
+
+        fun_648836101_set_status_i1_v1(document.getElementById("var_148124971_decode_status_obj"), "Decoded bytes: " + var_396721995_current_decoded_bytes_arr.length + var_548401706_matches_str, true);
+    } catch (var_973062925_error_obj) {
+        var_396721995_current_decoded_bytes_arr = new Uint8Array(0);
+        document.getElementById("var_753753828_decoded_text_output_str").value = "";
+        fun_648836101_set_status_i1_v1(document.getElementById("var_148124971_decode_status_obj"), "Decode error: " + var_973062925_error_obj.message, false);
+    }
+}
+
+function fun_220122524_uint8arrays_equal_i1_v1(var_390836749_a_arr, var_594403162_b_arr) {
+    if (var_390836749_a_arr.length !== var_594403162_b_arr.length) {
+        return false;
+    }
+
+    for (var var_994939893_i_num = 0; var_994939893_i_num < var_390836749_a_arr.length; var_994939893_i_num++) {
+        if (var_390836749_a_arr[var_994939893_i_num] !== var_594403162_b_arr[var_994939893_i_num]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function fun_216414708_copy_encoded_text_i1_v1() {
+    var var_279996619_textarea_obj = document.getElementById("var_240249013_encoded_output_str");
+    navigator.clipboard.writeText(var_279996619_textarea_obj.value).then(function () {
+        fun_648836101_set_status_i1_v1(document.getElementById("var_148124971_decode_status_obj"), "Full encoded text copied to clipboard.", true);
+    }).catch(function () {
+        fun_648836101_set_status_i1_v1(document.getElementById("var_148124971_decode_status_obj"), "Could not copy full encoded text.", false);
+    });
+}
+
+function fun_551305295_update_trimmed_output_i1_v1(var_196553209_full_encoded_str) {
+    var var_404572073_trim_length_input_obj = document.getElementById("var_546425703_trim_length_input_num");
+    var var_943389989_trimmed_area_obj = document.getElementById("var_808975969_trimmed_output_area_obj");
+    var var_938706074_trimmed_output_obj = document.getElementById("var_306728331_trimmed_output_str");
+    var var_483135713_trim_length_raw_str = var_404572073_trim_length_input_obj.value.trim();
+
+    if (var_483135713_trim_length_raw_str === "") {
+        var_938706074_trimmed_output_obj.value = "";
+        var_943389989_trimmed_area_obj.style.display = "none";
+        return "";
+    }
+
+    var var_506986077_trim_length_num = parseInt(var_483135713_trim_length_raw_str, 10);
+
+    if (Number.isNaN(var_506986077_trim_length_num) || var_506986077_trim_length_num < 0) {
+        var_938706074_trimmed_output_obj.value = "";
+        var_943389989_trimmed_area_obj.style.display = "none";
+        throw new Error("Trim length must be blank, 0, or a positive number.");
+    }
+
+    var var_988796436_trimmed_str = var_196553209_full_encoded_str.slice(0, var_506986077_trim_length_num);
+    var_938706074_trimmed_output_obj.value = var_988796436_trimmed_str;
+    var_943389989_trimmed_area_obj.style.display = "block";
+
+    if (var_506986077_trim_length_num > var_196553209_full_encoded_str.length) {
+        return "\nTrimmed output requested " + var_506986077_trim_length_num + " characters, but the full output only has " + var_196553209_full_encoded_str.length + " characters, so the trimmed output is the full output.";
+    }
+
+    return "\nTrimmed output length: " + var_988796436_trimmed_str.length + " characters. The trimmed output is not intended to be decodable.";
+}
+
+function fun_921973315_copy_trimmed_text_i1_v1() {
+    var var_593640916_textarea_obj = document.getElementById("var_306728331_trimmed_output_str");
+    navigator.clipboard.writeText(var_593640916_textarea_obj.value).then(function () {
+        fun_648836101_set_status_i1_v1(document.getElementById("var_148124971_decode_status_obj"), "Trimmed text copied to clipboard.", true);
+    }).catch(function () {
+        fun_648836101_set_status_i1_v1(document.getElementById("var_148124971_decode_status_obj"), "Could not copy trimmed text.", false);
+    });
+}
+
+function fun_137516721_download_decoded_bytes_i1_v1() {
+    var var_078944249_blob_obj = new Blob([var_396721995_current_decoded_bytes_arr], { type: "application/octet-stream" });
+    var var_469505028_url_str = URL.createObjectURL(var_078944249_blob_obj);
+    var var_013923421_link_obj = document.createElement("a");
+    var_013923421_link_obj.href = var_469505028_url_str;
+    var_013923421_link_obj.download = "ritchey_decoded_bytes.bin";
+    document.body.appendChild(var_013923421_link_obj);
+    var_013923421_link_obj.click();
+    document.body.removeChild(var_013923421_link_obj);
+    URL.revokeObjectURL(var_469505028_url_str);
+}
+
+function fun_818950378_update_source_visibility_i1_v1() {
+    var var_907395111_source_str = document.getElementById("var_061342134_input_source_select_uns").value;
+
+    document.getElementById("var_376895162_random_input_area_obj").style.display = "none";
+    document.getElementById("var_487369133_typed_input_area_obj").style.display = "none";
+    document.getElementById("var_750367556_file_input_area_obj").style.display = "none";
+
+    if (var_907395111_source_str === "random") {
+        document.getElementById("var_376895162_random_input_area_obj").style.display = "block";
+    } else if (var_907395111_source_str === "typed") {
+        document.getElementById("var_487369133_typed_input_area_obj").style.display = "block";
+    } else if (var_907395111_source_str === "file") {
+        document.getElementById("var_750367556_file_input_area_obj").style.display = "block";
+    }
+}
+
+function fun_076705090_initialize_page_i1_v1() {
+    document.getElementById("var_061342134_input_source_select_uns").addEventListener("change", fun_818950378_update_source_visibility_i1_v1);
+    document.getElementById("var_268710955_generate_random_button_obj").addEventListener("click", fun_467432658_generate_random_bytes_i1_v1);
+    document.getElementById("var_750610756_load_typed_button_obj").addEventListener("click", fun_358755961_load_typed_text_i1_v1);
+    document.getElementById("var_994185615_load_file_button_obj").addEventListener("click", fun_056827390_read_file_i1_v1);
+    document.getElementById("var_298851731_encode_button_obj").addEventListener("click", fun_912147589_encode_current_input_i1_v1);
+    document.getElementById("var_827972822_decode_button_obj").addEventListener("click", fun_664152443_decode_encoded_text_i1_v1);
+    document.getElementById("var_707221285_copy_encoded_button_obj").addEventListener("click", fun_216414708_copy_encoded_text_i1_v1);
+    document.getElementById("var_902143227_copy_trimmed_button_obj").addEventListener("click", fun_921973315_copy_trimmed_text_i1_v1);
+    document.getElementById("var_950510764_download_decoded_button_obj").addEventListener("click", fun_137516721_download_decoded_bytes_i1_v1);
+
+    fun_818950378_update_source_visibility_i1_v1();
+    fun_467432658_generate_random_bytes_i1_v1();
+}
+
+window.addEventListener("load", fun_076705090_initialize_page_i1_v1);
+</script>
+</body>
+</html>
